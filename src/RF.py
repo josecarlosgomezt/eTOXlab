@@ -185,7 +185,7 @@ class RF:
 
     def build (self, X, Y, quantitative=False, autoscale=False,
                nestimators=0, features='', random=False, tune=False, class_weight="balanced",
-              lc=True, cv='loo', n=2, p=1 ):
+               cv='loo', n=2, p=1, lc=True):
         """Build a new RF model with the X and Y numpy matrices
 
         """
@@ -220,10 +220,6 @@ class RF:
             RANDOM_STATE = 1226 # no reason to pick this number
 
         if self.cv:
-            print self.cv
-            print RANDOM_STATE
-            print self.n
-            print self.p
             self.cv = getCrossVal(self.cv, RANDOM_STATE, self.n, self.p)
             
         if tune :

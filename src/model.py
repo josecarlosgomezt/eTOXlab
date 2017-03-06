@@ -38,8 +38,6 @@ import numpy as np
 from pls import pls
 from pca import pca
 from RF import RF
-from SVM import SVM #JC
-from GNB import GNB
 from StringIO import StringIO
 from utils import removefile
 from utils import randomName
@@ -101,46 +99,18 @@ class model:
         self.modelAutoscaling = None
         self.modelCutoff = None
 
-        ## Random State
-
-        self.random = False #KP
-
-        ## Random Forest
-        
+        ## Random Forest        
         self.RFestimators = None
         self.RFfeatures = None
         self.RFtune = False
         self.RFclass_weight = None
-##        self.RFrandom = False
-
-        ## SVMs
-        
-        self.SVMkernel = None                   #KP
-        self.SVMC = None                        #KP
-        self.SVMdegree = None                   #KP
-        self.SVMepsilon = None                  #KP
-        self.SVMgamma = None                    #KP
-        self.SVMcoef0 = None                    #KP
-        self.SVMprobability = False             #KP
-        self.SVMshrinking = False               #KP
-        self.SVMtol = None                      #KP
-        self.SVMclass_weight = None             #KP
-##        self.SVMrandom_state = False            #KP
-        self.SVMdfs = None                      #KP
-        self.SVMtune = False                    #KP
-
-        ## Gaussian Naive Bayes
-        
-        self.GNBpriors = None
+        self.RFrandom = False
         
         ## Model Validation Settings
-        self.cv = None
-        self.n = 0
-        self.p = 0
-        self.lc = False # Learning curve
-
-
-
+        self.ModelValidationCV = None
+        self.ModelValidationN = 0
+        self.ModelValidationP = 0
+        self.ModelValidationLC = False # Learning curve
 
         self.selVar = None
         #self.selVarMethod = None
@@ -1316,10 +1286,6 @@ class model:
             success, result = self.computePredictionPLS (md, charge)
         elif self.model == 'RF':
             success, result = self.computePredictionRF (md, charge)
-        elif self.model == 'SVM': 
-            success, result = self.computePredictionSVM (md, charge)
-        elif self.model == 'GNB': #KP
-            success, result = self.computePredictionGNB (md, charge)
         else :
             success, result = self.computePredictionOther (md, charge)
 
@@ -1343,12 +1309,6 @@ class model:
 
         if self.model == 'RF':
             return (False,'not implemented for RF')
-
-        if self.model == 'SVM': #JC
-            return (False,'not implemented for SVM')
-            
-        if self.model == 'GNB': #JC
-            return (False,'not implemented for GNB')
 
         f = file (self.vpath+'/tscores.npy','rb')
         nlv = np.load(f)
@@ -1834,7 +1794,9 @@ class model:
                     model.validateLOO(self.modelLV)
 
                     for i in range (self.modelLV):
-                       print 'LV%2d R2:%5.3f Q2:%5.3f SDEP:%7.3f' % \
+##                       print 'LV%2d R2:%5.3f Q2:%5.3f SDEP:%7.3f' % \
+##                            (i+1,model.SSYac[i],model.Q2[i],model.SDEP[i])
+                       print 'pred LV:%d R2:%5.3f Q2:%5.3f SDEP:%5.3f' % \
                             (i+1,model.SSYac[i],model.Q2[i],model.SDEP[i])
 
             while True:
@@ -1864,9 +1826,10 @@ class model:
                 model.validateLOO(self.modelLV)
 
                 for i in range (self.modelLV):
-                   print 'LV%2d R2:%5.3f Q2:%5.3f SDEP:%7.3f' % \
+##                   print 'LV%2d R2:%5.3f Q2:%5.3f SDEP:%7.3f' % \
+##                         (i+1,model.SSYac[i],model.Q2[i],model.SDEP[i])
+                   print 'pred LV:%d R2:%5.3f Q2:%5.3f SDEP:%5.3f' % \
                          (i+1,model.SSYac[i],model.Q2[i],model.SDEP[i])
-
                 if not nexcluded :
                     # fake the rest of the runs by dumping the same mask (res) again and again
                     for i in range (self.selVarRun-iRuns):
@@ -1915,7 +1878,9 @@ class model:
 
         yp = model.validateLOO(self.modelLV)
         for i in range (self.modelLV):
-            print 'LV%2d R2:%5.3f Q2:%5.3f SDEP:%7.3f' % \
+##            print 'LV%2d R2:%5.3f Q2:%5.3f SDEP:%7.3f' % \
+##                  (i+1,model.SSYac[i],model.Q2[i],model.SDEP[i])
+            print 'pred LV:%d R2:%5.3f Q2:%5.3f SDEP:%5.3f' % \
                   (i+1,model.SSYac[i],model.Q2[i],model.SDEP[i])
 
         self.infoResult = []
@@ -2346,8 +2311,9 @@ class model:
 
             rfmodel = RF()
             rfmodel.build (X,Y, self.quantitative, self.modelAutoscaling,
-                           self.RFestimators, self.RFfeatures, self.random, self.RFtune, self.RFclass_weight,
-                            self.lc, self.cv, self.n, self.p)
+                           self.RFestimators, self.RFfeatures, self.RFrandom, self.RFtune, self.RFclass_weight,
+                           self.ModelValidationCV, self.ModelValidationN, self.ModelValidationP, self.ModelValidationLC)
+            
             rfmodel.validate()
             rfmodel.saveModel(self.vpath+'/RFModel.npy')
 
@@ -2367,69 +2333,6 @@ class model:
                 self.infoResult.append( ('OOBe' ,'%5.3f' % rfmodel.OOBe ) )
 
             return (True, 'RF Model OK')
-
-        elif self.model == 'SVM': # KP
-
-            X,Y = self.getMatrices ()
-
-            nobj, nvarx = np.shape(X)
-
-            if (nobj==0) or (nvarx==0) :
-                return (False, 'failed to extract activity or to generate MD')
-
-            nobj = np.shape(Y)
-            if (nobj==0) :
-                return (False, 'no activity found')
-
-            SVMmodel = SVM()
-            SVMmodel.build (X,Y, self.quantitative, self.modelAutoscaling,
-                           self.SVMkernel, self.SVMepsilon, self.SVMC, self.SVMdegree,
-                           self.SVMgamma, self.SVMcoef0, self.SVMprobability,
-                           self.SVMshrinking, self.SVMtol, self.SVMclass_weight,
-                           self.SVMdfs, self.random, self.cv, self.SVMtune,
-                           self.lc, self.n, self.p)
-            SVMmodel.validate()
-            SVMmodel.saveModel(self.vpath+'/SVMModel.npy')
-
-            self.infoModel = []
-            self.infoResult = []
-            self.infoResult.append( ('nobj',SVMmodel.nobj) )
-            if self.quantitative:
-                self.infoModel.append( ('model','SVM regressor') )
-
-                self.infoResult.append( ('R2','%5.3f' % SVMmodel.R2 ) )
-                self.infoResult.append( ('SDEC' ,'%5.3f' % SVMmodel.SDEC ) )
-            else:
-                self.infoModel.append( ('model','SVM classifier') )
-                
-            return (True, 'SVM Model OK')
-                
-        elif self.model == 'GNB': # Gaussian Naive Bayes
-            X,Y = self.getMatrices ()
-
-            nobj, nvarx = np.shape(X)
-
-            if (nobj==0) or (nvarx==0) :
-                return (False, 'failed to extract activity or to generate MD')
-
-            nobj = np.shape(Y)
-            if (nobj==0) :
-                return (False, 'no activity found')
-                
-            GNBmodel = GNB()
-            GNBmodel.build(X, Y, self.quantitative, self.modelAutoscaling, self.GNBpriors, self.lc, self.cv, self.n, self.p, self.random)
-            GNBmodel.validate()
-            GNBmodel.saveModel(self.vpath + '/GNBmodel.npy')
-            self.infoModel = []
-            self.infoResult = []
-            self.infoResult.append( ('model', GNBmodel.nobj) )
-            self.infoModel.append( ('model','GNB classifier') )
-            
-            return (True, 'GNB Model OK')
-
-
-
-
 
         else:
             return (False, 'modeling method not recognised')
