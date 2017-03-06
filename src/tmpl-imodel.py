@@ -182,6 +182,17 @@ class imodel(model):
         self.selVarMask = None              # Name of a file containing a previously computed mask of selected and
                                             # non selected variables
 
+        ## Random State #KP
+
+        self.random = False                 # If True a random seed is used for boostrapping
+                                            # RF: Qualitative and Quantitative
+                                            # SVM and GNB : Only Qualitative
+                                            # Only valid for Qualitative Models #  If True a random seed is used as aleatory, if False, random seed is fixed to 1226.       
+                                            # int seed, RandomState instance, or None (default)
+                                            # The seed of the pseudo random number generator to use when shuffling the d.ta for
+                                            # probability estimation.
+
+
         # RF relevant settings
 
         self.RFestimators = 100              # number of trees in the forest
@@ -200,19 +211,65 @@ class imodel(model):
         self.RFtune = True                   # If true optimizes the values of RFestimators and RFfeatures and generates a
                                              # diagnostic plot
 
-        self.RFrandom = False                # If True a random seed is used for boostrapping
-                                             # RF: Qualitative and Quantitative
-                                             # Only valid for Qualitative Models #  If True a random seed is used as aleatory, if False, random seed is fixed to 1226.       
-                                             # int seed, RandomState instance, or None (default)
-                                             # The seed of the pseudo random number generator to use when shuffling the d.ta for
-                                             # probability estimation.
+##        self.RFrandom = False                # If True a random seed is used for boostrapping
 
+        # SVM relevant settings   
+
+        self.SVMtune = True                  # True if one wants to see which parameters are better, otherwise you can define them below.
+
+        self.SVMC = 1.0                      # penalty
+        
+        self.SVMkernel = 'rbf'               # linear <x,x'>
+                                             # polynomial (gamma <x,x'> + r)^d. d is specified by keyword degree, r by coef0.
+                                             # rbf: exp(-gamma|x-x'|^2). Gamma is specified by keyword gamma, must be greater than 0.
+                                             # sigmoid (tanh(gamma <x,x'> + r)), where r is specified by coef0. 
+                                             # Specifies the kernel type to be used in the algorithm. It must be one of ‘linear’, ‘poly’, ‘rbf’,
+                                             # 'sigmoid’, ‘precomputed’ or a callable. If none is given, ‘rbf’ will be used. If a callable is 
+                                             # given it is used to pre-compute the kernel matrix from data matrices; that matrix should be
+                                             # an array of shape (n_samples, n_samples).
+
+        self.SVMdfs= 'ovr'                   # decision_function_shape : ‘ovo’, ‘ovr’ or None, default=None
+                                             # Whether to return a one-vs-rest (‘ovr’) decision function of shape (n_samples, n_classes)
+                                             # as all other classifiers, or the original one-vs-one (‘ovo’) decision function of libsvm which 
+                                             # has shape (n_samples, n_classes * (n_classes - 1) / 2). The default of None will currently
+                                             # behave as ‘ovo’ for backward compatibility and raise a deprecation warning.
+
+        self.SVMgamma = 'auto'               # Kernel coefficient for ‘rbf’, ‘poly’ and ‘sigmoid’. If gamma is ‘auto’ then 1/n_features will be
+                                             # used instead.
+
+        self.SVMdegree = 3                   # Degree of the polynomial kernel function (‘poly’). Ignored by all other kernels.
+                                             # polynomial (gamma <x,x'> + r)^d. d is specified by keyword degree, r by coef0.
+
+        self.SVMcoef0 = 0.0                  # Independent term in kernel function. It is only significant in ‘poly’ and ‘sigmoid’.
+                                             # sigmoid (tanh(gamma <x,x'> + r)), where r is specified by coef0.
+                                             # polynomial (gamma <x,x'> + r)^d. d is specified by keyword degree, r by coef0.
+
+##        self.SVMrandom_state = False         # Only valid for Qualitative Models #  If True a random seed is used as aleatory, if False, random seed is fixed to 1226.       
+##                                             # int seed, RandomState instance, or None (default)
+##                                             # The seed of the pseudo random number generator to use when shuffling the d.ta for
+##                                             # probability estimation.
+
+        self.SVMclass_weight = 'balanced'    # Only valid for Qualitative Models
+                                             # class_weight : dict, list of dicts, “balanced”
+                                             # The “balanced” mode uses the values of y to automatically adjust weights inversely
+                                             # proportional to class frequencies in the input data as n_samples / (n_classes * np.bincount(y))
+        self.SVMprobatility = False
+        self.SVMepsilon = 0.1
+        self.SVMshrinking = True
+        self.SVMtol = 1e-3
+        
+        
+        ## Gaussian Naive Bayes settings
+        
+        self.GNBpriors = None
           
         ## Model Validation Settings
+        ### Splitter Classes for Cross-Validation ###
         
-        self.ModelValidationCV = 'loo'      ##      ('kfold', 'gkfold', 'stkfold', 'logo', 'lpgo', 'loo', 'lpo', 'shufsplit', 'gshufplit', 'stshufsplit', 'psplit', 'tsplit')
-        self.ModelValidationN = 2           ##       int, Only for n_splits or n_groups
-        self.ModelValidationP = 1           ##       int, Only for n_samples e.g. LeavePOut(p)
+        
+        self.cv = 'loo'                     ##      ('kfold', 'gkfold', 'stkfold', 'logo', 'lpgo', 'loo', 'lpo', 'shufsplit', 'gshufplit', 'stshufsplit', 'psplit', 'tsplit')
+        self.n = 2                          ##       int, Only for n_splits or n_groups
+        self.p = 1                          ##       int, Only for n_samples e.g. LeavePOut(p)
 
                                             ##        kfold = KFold(n_splits=2, random_state=self.random_state, shuffle=False)              ### K-Folds cross-validator
                                             ##        gkfold = GroupKFold(n_splits=2)                                                       ### K-fold iterator variant with non-overlapping groups.
@@ -227,7 +284,7 @@ class imodel(model):
                                             ##        psplit = PredefinedSplit(test_fold=array([ 0,  1, -1,  1]))                           ### Predefined split cross-validator
                                             ##        tssplit = TimeSeriesSplit(n_splits=3)                                                 ### Time Series cross-validator
 
-        self.ModelValidationLC = True       ##        Plot learning curve
+        self.lc = True                      ##        Plot learning curve
         
 
 

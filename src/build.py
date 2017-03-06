@@ -196,6 +196,8 @@ def presentResults (result):
     sys.exit(0)
 
 def testimodel():
+    #print os.getcwd()
+    #sys.exit(1)
     try:
         from imodel import imodel
     except:
